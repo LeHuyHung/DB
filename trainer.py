@@ -30,8 +30,10 @@ class Trainer:
             self.device = torch.device('cpu')
 
     def init_model(self):
+        print(self.structure.builder)
         model = self.structure.builder.build(
             self.device, self.experiment.distributed, self.experiment.local_rank)
+        #print(model)
         return model
 
     def update_learning_rate(self, optimizer, epoch, step):

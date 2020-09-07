@@ -16,8 +16,10 @@ class AugmentData(DataProcess):
         self.keep_ratio = kwargs.get('keep_ratio')
         self.only_resize = kwargs.get('only_resize')
         self.augmenter = AugmenterBuilder().build(self.augmenter_args)
+        
 
     def may_augment_annotation(self, aug, data):
+        print("==================may_augment_annotation=============")
         pass
 
     def resize_image(self, image):

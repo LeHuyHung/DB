@@ -31,6 +31,7 @@ class SegDetectorLossBuilder():
         self.loss_kwargs = kwargs
 
     def build(self):
+        
         return getattr(sys.modules[__name__], self.loss_class)(*self.loss_args, **self.loss_kwargs)
 
 
@@ -183,14 +184,20 @@ class L1BalanceCELoss(nn.Module):
         from .dice_loss import DiceLoss
         from .l1_loss import MaskL1Loss
         from .balance_cross_entropy_loss import BalanceCrossEntropyLoss
+        from .angle_loss import AngleMaskL1Loss
         self.dice_loss = DiceLoss(eps=eps)
         self.l1_loss = MaskL1Loss()
         self.bce_loss = BalanceCrossEntropyLoss()
 
         self.l1_scale = l1_scale
         self.bce_scale = bce_scale
+        
+        self.angle_scale=0.1
+        self.angle_loss=AngleMaskL1Loss()
+        
 
     def forward(self, pred, batch):
+        
         bce_loss = self.bce_loss(pred['binary'], batch['gt'], batch['mask'])
         metrics = dict(bce_loss=bce_loss)
         if 'thresh' in pred:
@@ -201,6 +208,17 @@ class L1BalanceCELoss(nn.Module):
             metrics.update(**l1_metric)
         else:
             loss = bce_loss
+        
+        
+        if "cos" in pred and "sin" in pred:
+            
+            cos_loss,cos_metric=self.angle_loss(pred['cos'],batch['gt_angle_cos'],batch['mask_angle'])
+            sin_loss,sin_metric=self.angle_loss(pred['sin'],batch['gt_angle_sin'],batch['mask_angle'])
+            loss=loss+cos_loss*self.angle_scale+sin_loss*self.angle_scale
+            #print(loss.cpu().detach().numpy(),cos_loss.cpu().detach().numpy(),sin_loss.cpu().detach().numpy())
+            #1/0
+        else:
+            print("===================== not loss angle =============")
         return loss, metrics
 
 

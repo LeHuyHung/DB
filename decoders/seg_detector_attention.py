@@ -4,6 +4,56 @@ import torch
 import torch.nn as nn
 BatchNorm2d = nn.BatchNorm2d
 
+def normalization(planes, norm='bn'):
+    if norm == 'bn':
+        m = nn.BatchNorm2d(planes)
+    elif norm == 'gn':
+        m = nn.GroupNorm(4, planes)
+    elif norm == 'in':
+        m = nn.InstanceNorm2d(planes)
+    elif norm == 'sync_bn':
+        m = SynchronizedBatchNorm2d(planes)
+    else:
+        raise ValueError('normalization type {} is not supported'.format(norm))
+    return m
+class AttentionBlock(nn.Module):
+    def __init__(self, f_g, f_l, f_int, norm, g=1):
+        super(AttentionBlock, self).__init__()
+        self.W_g = nn.Sequential(
+            nn.Conv2d(f_g, f_int, kernel_size=1, padding=0, stride=1, groups=g,
+                      bias=True),
+            normalization(f_int, norm=norm)
+            # nn.Conv2d(f_g, f_int, kernel_size=1, stride=1, padding=0, bias=True),
+            # nn.BatchNorm2d(f_int)
+        )
+
+        self.W_x = nn.Sequential(
+            nn.Conv2d(f_l, f_int, kernel_size=1, stride=1, padding=0, groups=g,
+                      bias=True),
+            normalization(f_int, norm=norm)
+            # nn.Conv2d(f_l, f_int, kernel_size=1, stride=1, padding=0, bias=True),
+            # nn.BatchNorm2d(f_int)
+        )
+
+        self.psi = nn.Sequential(
+            nn.Conv2d(f_int, 1, kernel_size=1, stride=1, padding=0,
+                      bias=True),
+            normalization(1, norm=norm),
+            # nn.Conv2d(f_int, 1, kernel_size=1, stride=1, padding=0, bias=True),
+            # nn.BatchNorm2d(1),
+            nn.Sigmoid()
+        )
+
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, g, x):
+        g1 = self.W_g(g)
+        x1 = self.W_x(x)
+        psi = self.relu(g1 + x1)
+        psi = self.psi(psi)
+
+        return x * psi
+
 class SegDetector(nn.Module):
     def __init__(self,
                  in_channels=[64, 128, 256, 512],
@@ -70,7 +120,32 @@ class SegDetector(nn.Module):
         self.out4.apply(self.weights_init)
         self.out3.apply(self.weights_init)
         self.out2.apply(self.weights_init)
+        
+        
+        
+        #======= init attention ==============
+        channels=128
+        norm='bn'
+        self.att4 = AttentionBlock(f_g=channels * 2, f_l=channels * 2, f_int=channels, norm=norm, g=1)
+        self.att3 = AttentionBlock(f_g=channels * 2, f_l=channels* 2, f_int=channels, norm=norm, g=1)
+        self.att2 = AttentionBlock(f_g=channels * 2, f_l=channels * 2, f_int=channels, norm=norm, g=1)
 
+
+        #======= angle output ==============
+        self.angle = nn.Sequential(
+            nn.Conv2d(inner_channels, inner_channels //
+                      4, 3, padding=1, bias=bias),
+            BatchNorm2d(inner_channels//4),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(inner_channels//4, inner_channels//4, 2, 2),
+            BatchNorm2d(inner_channels//4),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(inner_channels//4, 1, 2, 2),
+            )
+        
+        self.angle.apply(self.weights_init)
+        
+        
     def weights_init(self, m):
         classname = m.__class__.__name__
         if classname.find('Conv') != -1:
@@ -117,15 +192,33 @@ class SegDetector(nn.Module):
 
     def forward(self, features, gt=None, masks=None, training=False):
         c2, c3, c4, c5 = features
-        in5 = self.in5(c5)
-        in4 = self.in4(c4)
-        in3 = self.in3(c3)
-        in2 = self.in2(c2)
-
-        out4 = self.up5(in5) + in4  # 1/16
-        out3 = self.up4(out4) + in3  # 1/8
-        out2 = self.up3(out3) + in2  # 1/4
-
+        in5 = self.in5(c5) # inner_channels
+        in4 = self.in4(c4) # inner_channels
+        in3 = self.in3(c3) # inner_channels
+        in2 = self.in2(c2) # inner_channels
+        
+        
+        
+        #======= old ===============
+        # out4 = self.up5(in5) + in4  # 1/16
+        # out3 = self.up4(out4) + in3  # 1/8
+        # out2 = self.up3(out3) + in2  # 1/4
+        #======= use attention ===============
+        
+        up5 = self.up5(in5)  # inner_channels,1/16
+        in4 = self.att4(g=up5, x=in4) # inner_channels,1/16
+        out4 = up5+in4
+        
+        up4 = self.up4(out4)  # 1/16
+        in3 = self.att3(g=up4, x=in3)
+        out3 = up4+in3
+        
+        up3 = self.up5(out3)  # 1/16
+        in2 = self.att2(g=up3, x=in2)
+        out2 = up3+in2
+       
+        
+        
         p5 = self.out5(in5)
         p4 = self.out4(out4)
         p3 = self.out3(out3)
@@ -147,6 +240,14 @@ class SegDetector(nn.Module):
             thresh = self.thresh(fuse)
             thresh_binary = self.step_function(binary, thresh)
             result.update(thresh=thresh, thresh_binary=thresh_binary)
+            
+            
+            
+        #============ angle output =========
+        angle=self.angle(fuse)
+        cos=torch.cos(angle) 
+        sin=torch.sin(angle) 
+        result.update(cos=cos,sin=sin)
         return result
 
     def step_function(self, x, y):

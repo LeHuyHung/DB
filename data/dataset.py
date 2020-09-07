@@ -9,6 +9,9 @@ class SliceDataset(TorchDataset, Configurable):
     end = State()
 
     def __init__(self, **kwargs):
+        print("=============")
+        print(kwargs)
+        print("=============")
         self.load_all(**kwargs)
 
         if self.start is None:

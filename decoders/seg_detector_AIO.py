@@ -17,7 +17,6 @@ class SegDetector(nn.Module):
         serial: If true, thresh prediction will combine segmentation result as input.
         '''
         super(SegDetector, self).__init__()
-        print("###serial #######",serial)
         self.k = k
         self.serial = serial
         self.up5 = nn.Upsample(scale_factor=2, mode='nearest')
@@ -55,6 +54,22 @@ class SegDetector(nn.Module):
             nn.ConvTranspose2d(inner_channels//4, 1, 2, 2),
             nn.Sigmoid())
         self.binarize.apply(self.weights_init)
+        
+        
+        self.angle = nn.Sequential(
+            nn.Conv2d(inner_channels, inner_channels //
+                      4, 3, padding=1, bias=bias),
+            BatchNorm2d(inner_channels//4),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(inner_channels//4, inner_channels//4, 2, 2),
+            BatchNorm2d(inner_channels//4),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(inner_channels//4, 1, 2, 2),
+            )
+            
+            
+        self.binarize.apply(self.weights_init)
+        self.angle.apply(self.weights_init)
 
         self.adaptive = adaptive
         if adaptive:
@@ -135,6 +150,7 @@ class SegDetector(nn.Module):
         # this is the pred module, not binarization module; 
         # We do not correct the name due to the trained model.
         binary = self.binarize(fuse)
+        angle = self.angle(fuse)
         if self.training:
             result = OrderedDict(binary=binary)
         else:
@@ -147,6 +163,7 @@ class SegDetector(nn.Module):
             thresh = self.thresh(fuse)
             thresh_binary = self.step_function(binary, thresh)
             result.update(thresh=thresh, thresh_binary=thresh_binary)
+        result.update(angle=angle)
         return result
 
     def step_function(self, x, y):

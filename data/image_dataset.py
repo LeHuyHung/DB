@@ -31,7 +31,12 @@ class ImageDataset(data.Dataset, Configurable):
         self.image_paths = []
         self.gt_paths = []
         self.get_all_samples()
-
+        print("=================== image dataset processes=========")
+        print(self.processes)
+        print(self.processes[0].only_resize)    
+        print(self.processes[0].augmenter)
+        print(self.processes[1].require_original_image)
+        
     def get_all_samples(self):
         for i in range(len(self.data_dir)):
             with open(self.data_list[i], 'r') as fid:
@@ -94,6 +99,30 @@ class ImageDataset(data.Dataset, Configurable):
         if self.processes is not None:
             for data_process in self.processes:
                 data = data_process(data)
+        
+        gt_angle=data['gt_angle']
+         
+        # img_dump=data['image'].numpy()
+        # import numpy as np
+        # import os
+        # img_dump=np.stack([img_dump[0,:,:],img_dump[1,:,:],img_dump[2,:,:]],axis=2)
+        # img_dump=img_dump*254
+        
+        
+        # id=str(len(os.listdir("dump_img")))
+        # img_dump=np.array(img_dump,dtype=np.uint8)
+        # cv2.imwrite("dump_img/"+id+".jpg",img_dump)
+        
+       
+        # mask_angle=data['mask_angle']
+        
+        
+        # cv2.imwrite("dump_gt_angle/"+id+"_cos.jpg",((gt_angle[0]+1)*127).astype(np.uint8))
+        # cv2.imwrite("dump_gt_angle/"+id+"_sin.jpg",((gt_angle[1]+1)*127).astype(np.uint8))
+        # cv2.imwrite("dump_mask_angle/"+id+".jpg",np.stack([mask_angle*254],axis=2).astype(np.uint8))
+        data['gt_angle_cos']=gt_angle[0]
+        data['gt_angle_sin']=gt_angle[1]
+        
         return data
 
     def __len__(self):

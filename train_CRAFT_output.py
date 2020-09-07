@@ -20,6 +20,7 @@ from concern.config import Configurable, Config
 def main():
     parser = argparse.ArgumentParser(description='Text Recognition Training')
     parser.add_argument('exp', type=str)
+     parser.add_argument('--model_train', type=str)
     parser.add_argument('--name', type=str)
     parser.add_argument('--batch_size', type=int, help='Batch size for training')
     parser.add_argument('--resume', type=str, help='Resume from checkpoint')
@@ -47,11 +48,11 @@ def main():
     parser.add_argument('-g', '--num_gpus', dest='num_gpus', default=4, type=int, help='The number of accessible gpus')
     parser.set_defaults(debug=False)
     parser.set_defaults(benchmark=True)
-
+   
     args = parser.parse_args()
     args = vars(args)
     args = {k: v for k, v in args.items() if v is not None}
-
+    print("Start training ",args.model_train)
     if args['distributed']:
         torch.cuda.set_device(args['local_rank'])
         torch.distributed.init_process_group(backend='nccl', init_method='env://')

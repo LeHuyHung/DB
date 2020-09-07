@@ -11,10 +11,8 @@ import decoders
 class BasicModel(nn.Module):
     def __init__(self, args):
         nn.Module.__init__(self)
-        print("==================== build backbone ================")
-        print(backbones, args['backbone'])
+       
         self.backbone = getattr(backbones, args['backbone'])(**args.get('backbone_args', {}))
-        print("==================== build decoder ================")
         print("args['decoder']",args['decoder'])
         self.decoder = getattr(decoders, args['decoder'])(**args.get('decoder_args', {}))
 
