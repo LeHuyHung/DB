@@ -8,7 +8,7 @@ from concern.signal_monitor import SignalMonitor
 
 class ModelSaver(Configurable):
     dir_path = State()
-    save_interval = State(default=1000)
+    save_interval = State(default=2)
     signal_path = State()
 
     def __init__(self, **kwargs):
@@ -16,7 +16,8 @@ class ModelSaver(Configurable):
 
         # BUG: signal path should not be global
         self.monitor = SignalMonitor(self.signal_path)
-
+        print(self.save_interval,"=======================")
+        self.save_interval=1000
     def maybe_save_model(self, model, epoch, step, logger):
         if step % self.save_interval == 0 or self.monitor.get_signal() is not None:
             self.save_model(model, epoch, step)

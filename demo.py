@@ -130,6 +130,7 @@ class Demo:
         model.eval()
         batch = dict()
         batch['filename'] = [image_path]
+        print(image_path,'============')
         img, original_shape = self.load_image(image_path)
         batch['shape'] = [original_shape]
         with torch.no_grad():

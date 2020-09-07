@@ -175,6 +175,7 @@ class Eval:
                         continue
                     pred = model.forward(batch, training=False)
                     output = self.structure.representer.represent(batch, pred, is_output_polygon=self.args['polygon']) 
+                    
                     if not os.path.isdir(self.args['result_dir']):
                         os.mkdir(self.args['result_dir'])
                     self.format_output(batch, output)
