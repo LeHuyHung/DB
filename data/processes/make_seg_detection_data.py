@@ -12,8 +12,8 @@ class MakeSegDetectionData(DataProcess):
     Making binary mask from detection data with ICDAR format.
     Typically following the process of class `MakeICDARData`.
     '''
-    min_text_size = State(default=8)
-    shrink_ratio = State(default=0.4)
+    min_text_size = State(default=-1    )
+    shrink_ratio = State(default=0.8)
 
     def __init__(self, **kwargs):
         self.load_all(**kwargs)
@@ -45,7 +45,7 @@ class MakeSegDetectionData(DataProcess):
             #              np.linalg.norm(polygon[1] - polygon[2]))
             # width = min(np.linalg.norm(polygon[0] - polygon[1]),
             #             np.linalg.norm(polygon[2] - polygon[3]))
-            if ignore_tags[i] or min(height, width) < self.min_text_size:
+            if (ignore_tags[i] or min(height, width) < self.min_text_size) and False:
                 cv2.fillPoly(mask, polygon.astype(
                     np.int32)[np.newaxis, :, :], 0)
                 ignore_tags[i] = True
@@ -53,6 +53,7 @@ class MakeSegDetectionData(DataProcess):
                 polygon_shape = Polygon(polygon)
                 distance = polygon_shape.area * \
                     (1 - np.power(self.shrink_ratio, 2)) / polygon_shape.length
+                #distance=0
                 subject = [tuple(l) for l in polygons[i]]
                 padding = pyclipper.PyclipperOffset()
                 padding.AddPath(subject, pyclipper.JT_ROUND,

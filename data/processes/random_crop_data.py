@@ -13,7 +13,10 @@ class RandomCropData(DataProcess):
     require_original_image = State(default=False)
 
     def __init__(self, **kwargs):
+        print(kwargs)
         self.load_all(**kwargs)
+        print(self.size)
+        
 
     def process(self, data):
         img = data['image']

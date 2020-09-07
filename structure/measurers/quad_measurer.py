@@ -40,7 +40,26 @@ class QuadMeasurer(Configurable):
                         # print(pred_polygons[i,:,:].tolist())
                         pred.append(dict(points=pred_polygons[i,:,:].tolist()))
                 # pred = [dict(points=pred_polygons[i,:,:].tolist()) if pred_scores[i] >= box_thresh for i in range(pred_polygons.shape[0])]
+            # print("============gt==================")
+            # print(max([np.max(np.array(g['points']))for g in gt]))
+            # print("===========pred===================")
+            # print(max([np.max(np.array(g['points']))for g in pred]))
+            # print(self.evaluator.evaluate_image)
+            # print(len(gt), len(pred))
+            # print(gt[0])
+            # print(pred[0])
+            pred_img=np.zeros((5000,5000),dtype=np.uint8)
+            gt_img=np.zeros((5000,5000),dtype=np.uint8)
+            import cv2
+            for box in pred:
+                cv2.drawContours(pred_img, [np.array(box['points'],dtype=np.int32)], 0, 255, 2)
+            for box in gt:
+                cv2.drawContours(gt_img, [np.array(box['points'],dtype=np.int32)], 0, 255, 2)
+            cv2.imwrite("pred_img.jpg",pred_img)
+            cv2.imwrite("gt_img.jpg",gt_img)
+            1/0
             results.append(self.evaluator.evaluate_image(gt, pred))
+            print(results[-1])
         return results
 
     def validate_measure(self, batch, output, is_output_polygon=False, box_thresh=0.6):

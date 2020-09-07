@@ -60,7 +60,7 @@ def main():
     experiment_args = conf.compile(conf.load(args['exp']))['Experiment']
     experiment_args.update(cmd=args)
     experiment = Configurable.construct_class_from_config(experiment_args)
-
+    
     if not args['print_config_only']:
         torch.backends.cudnn.benchmark = args['benchmark']
         trainer = Trainer(experiment)

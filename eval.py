@@ -1,6 +1,7 @@
 #!python3
 import argparse
 import os
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 import torch
 import yaml
 from tqdm import tqdm
@@ -174,11 +175,20 @@ class Eval:
                         time_cost = self.report_speed(model, batch, times=50)
                         continue
                     pred = model.forward(batch, training=False)
+                    # print("=====is_output_polygon===",self.args['polygon'],type(batch))
+                    # print(batch.keys())
+                    # print(batch['filename'])
+                    # print(batch['image'].shape)
+                    # print(batch['gt'][0].shape)
                     output = self.structure.representer.represent(batch, pred, is_output_polygon=self.args['polygon']) 
                     if not os.path.isdir(self.args['result_dir']):
                         os.mkdir(self.args['result_dir'])
                     self.format_output(batch, output)
+                    
                     raw_metric = self.structure.measurer.validate_measure(batch, output, is_output_polygon=self.args['polygon'], box_thresh=self.args['box_thresh'])
+                    # print(type(raw_metric),len(raw_metric),type(raw_metric[0]),raw_metric[0].keys())
+                    # print(raw_metric[0]['precision'],raw_metric[0]['hmean'],raw_metric[0]['recall'])
+                    # input()
                     raw_metrics.append(raw_metric)
 
                     if visualize and self.structure.visualizer:

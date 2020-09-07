@@ -82,6 +82,7 @@ class ImageDataset(data.Dataset, Configurable):
         data = {}
         image_path = self.image_paths[index]
         img = cv2.imread(image_path, cv2.IMREAD_COLOR).astype('float32')
+        old_shape=img.shape
         if self.is_training:
             data['filename'] = image_path
             data['data_id'] = image_path
@@ -89,11 +90,27 @@ class ImageDataset(data.Dataset, Configurable):
             data['filename'] = image_path.split('/')[-1]
             data['data_id'] = image_path.split('/')[-1]
         data['image'] = img
+        
         target = self.targets[index]
         data['lines'] = target
         if self.processes is not None:
             for data_process in self.processes:
+                old=data['image'].shape
+               
                 data = data_process(data)
+                #print(data_process,old,"==>",data['image'].shape)
+        # img_dump=data['image'].numpy()
+        # import numpy as np
+        # import os
+        # img_dump=np.stack([img_dump[0,:,:],img_dump[1,:,:],img_dump[2,:,:]],axis=2)
+        # img_dump=img_dump*254
+        # id=str(len(os.listdir("dump_img")))
+        # img_dump=np.array(img_dump,dtype=np.uint8)
+        # cv2.imwrite("dump_img/"+id+".jpg",img_dump)
+        # mask=data['mask']
+        # cv2.imwrite("dump_mask/"+id+".jpg",np.array(mask*254,dtype=np.uint8) )
+       
+        # cv2.imwrite("dump_gt/"+id+".jpg",np.array(np.stack([data['gt'][0,:,:]*254],axis=2),dtype=np.uint8) )
         return data
 
     def __len__(self):
