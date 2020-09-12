@@ -11,7 +11,7 @@ import decoders
 class BasicModel(nn.Module):
     def __init__(self, args):
         nn.Module.__init__(self)
-
+       
         self.backbone = getattr(backbones, args['backbone'])(**args.get('backbone_args', {}))
         self.decoder = getattr(decoders, args['decoder'])(**args.get('decoder_args', {}))
 
@@ -54,7 +54,7 @@ class SegDetectorModel(nn.Module):
             data = batch.to(self.device)
         data = data.float()
         pred = self.model(data, training=self.training)
-
+        
         if self.training:
             for key, value in batch.items():
                 if value is not None:

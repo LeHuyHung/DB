@@ -30,6 +30,7 @@ class Trainer:
             self.device = torch.device('cpu')
 
     def init_model(self):
+        
         model = self.structure.builder.build(
             self.device, self.experiment.distributed, self.experiment.local_rank)
         return model
@@ -40,6 +41,7 @@ class Trainer:
 
         for group in optimizer.param_groups:
             group['lr'] = lr
+            group['lr'] = 0.0001
         self.current_lr = lr
 
     def train(self):

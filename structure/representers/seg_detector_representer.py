@@ -12,7 +12,7 @@ class SegDetectorRepresenter(Configurable):
 
     def __init__(self, cmd={}, **kwargs):
         self.load_all(**kwargs)
-        self.min_size = 3
+        self.min_size = 1
         self.scale_ratio = 0.4
         if 'debug' in cmd:
             self.debug = cmd['debug']
@@ -43,6 +43,14 @@ class SegDetectorRepresenter(Configurable):
         else:
             pred = _pred
         segmentation = self.binarize(pred)
+        print((pred.shape[-2],pred.shape[-1],1))
+        if type(segmentation)==np.ndarray:
+            print(type(segmentation))
+            output=segmentation.astype(np.uint8)*254
+            print(output.shape)
+        else:
+            output=segmentation.cpu().numpy().astype(np.uint8)*254
+        cv2.imwrite("segmentation.png",np.reshape(output,(pred.shape[-2],pred.shape[-1],1)))
         boxes_batch = []
         scores_batch = []
         for batch_index in range(images.size(0)):
@@ -52,14 +60,19 @@ class SegDetectorRepresenter(Configurable):
                     pred[batch_index],
                     segmentation[batch_index], width, height)
             else:
+                boxes, scores = self.polygons_from_bitmap(
+                    pred[batch_index],
+                    segmentation[batch_index], width, height)
                 boxes, scores = self.boxes_from_bitmap(
                     pred[batch_index],
                     segmentation[batch_index], width, height)
+               
             boxes_batch.append(boxes)
             scores_batch.append(scores)
         return boxes_batch, scores_batch
     
     def binarize(self, pred):
+        print('self.thresh',self.thresh)
         return pred > self.thresh
 
     def polygons_from_bitmap(self, pred, _bitmap, dest_width, dest_height):
@@ -68,9 +81,16 @@ class SegDetectorRepresenter(Configurable):
             whose values are binarized as {0, 1}
         '''
 
-        assert _bitmap.size(0) == 1
-        bitmap = _bitmap.cpu().numpy()[0]  # The first channel
-        pred = pred.cpu().detach().numpy()[0]
+        #
+        if type(_bitmap)==np.ndarray:
+            bitmap=_bitmap[0]
+        else:
+            assert _bitmap.size(0) == 1
+            bitmap = _bitmap.cpu().numpy()[0]  # The first channel
+        if type(pred)==np.ndarray:
+            pred=pred[0]
+        else:
+            pred = pred.cpu().detach().numpy()[0]
         height, width = bitmap.shape
         boxes = []
         scores = []
@@ -78,19 +98,30 @@ class SegDetectorRepresenter(Configurable):
         contours, _ = cv2.findContours(
             (bitmap*255).astype(np.uint8),
             cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-
+        count_box=0
+        print('len(contours)',len(contours))
         for contour in contours[:self.max_candidates]:
-            epsilon = 0.01 * cv2.arcLength(contour, True)
-            approx = cv2.approxPolyDP(contour, epsilon, True)
-            points = approx.reshape((-1, 2))
-            if points.shape[0] < 4:
+            
+            ratio_epsilon=0.01
+            try:
+                while(True):
+                    epsilon = ratio_epsilon * cv2.arcLength(contour, True)
+                    approx = cv2.approxPolyDP(contour, epsilon, True)
+                    points = approx.reshape((-1, 2))
+                    if points.shape[0] > 3:
+                        break
+                    ratio_epsilon=ratio_epsilon-0.002
+                    if ratio_epsilon<=0:
+                        1/0
+            except:
                 continue
+            
             # _, sside = self.get_mini_boxes(contour)
             # if sside < self.min_size:
             #     continue
             score = self.box_score_fast(pred, points.reshape(-1, 2))
-            if self.box_thresh > score:
-                continue
+            # if self.box_thresh > score:
+                # continue
             
             if points.shape[0] > 2:
                 box = self.unclip(points, unclip_ratio=2.0)
@@ -99,9 +130,11 @@ class SegDetectorRepresenter(Configurable):
             else:
                 continue
             box = box.reshape(-1, 2)
-            _, sside = self.get_mini_boxes(box.reshape((-1, 1, 2)))
-            if sside < self.min_size + 2:
+            if box.reshape((-1, 1, 2)).shape[0]<3:
                 continue
+            _, sside = self.get_mini_boxes(box.reshape((-1, 1, 2)))
+            # if sside < self.min_size + 2:
+                # continue
 
             if not isinstance(dest_width, int):
                 dest_width = dest_width.item()
@@ -113,6 +146,8 @@ class SegDetectorRepresenter(Configurable):
                 np.round(box[:, 1] / height * dest_height), 0, dest_height)
             boxes.append(box.tolist())
             scores.append(score)
+            count_box+=1
+        print('count_box polygon: ',count_box)
         return boxes, scores
 
     def boxes_from_bitmap(self, pred, _bitmap, dest_width, dest_height):
@@ -121,7 +156,7 @@ class SegDetectorRepresenter(Configurable):
             whose values are binarized as {0, 1}
         '''
         
-        assert _bitmap.size(0) == 1
+        #assert _bitmap.size(0) == 1
         bitmap = _bitmap.cpu().numpy()[0]  # The first channel
         pred = pred.cpu().detach().numpy()[0]
         height, width = bitmap.shape
@@ -132,20 +167,24 @@ class SegDetectorRepresenter(Configurable):
         boxes = np.zeros((num_contours, 4, 2), dtype=np.int16)
         scores = np.zeros((num_contours,), dtype=np.float32)
 
+
+        count_box=0
         for index in range(num_contours):
             contour = contours[index]
             points, sside = self.get_mini_boxes(contour)
             if sside < self.min_size:
                 continue
+           
             points = np.array(points)
             score = self.box_score_fast(pred, points.reshape(-1, 2))
             if self.box_thresh > score:
                 continue
-        
+            count_box+=1
+            
             box = self.unclip(points).reshape(-1, 1, 2)
             box, sside = self.get_mini_boxes(box)
-            if sside < self.min_size + 2:
-                continue
+            # if sside < self.min_size + 2:
+                # continue
             box = np.array(box)
             if not isinstance(dest_width, int):
                 dest_width = dest_width.item()
@@ -157,10 +196,14 @@ class SegDetectorRepresenter(Configurable):
                 np.round(box[:, 1] / height * dest_height), 0, dest_height)
             boxes[index, :, :] = box.astype(np.int16)
             scores[index] = score
+            
+        print('count_box boxes ',count_box)
         return boxes, scores
 
     def unclip(self, box, unclip_ratio=1.5):
         poly = Polygon(box)
+        if poly.length==0:
+            print(box,poly)
         distance = poly.area * unclip_ratio / poly.length
         offset = pyclipper.PyclipperOffset()
         offset.AddPath(box, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)

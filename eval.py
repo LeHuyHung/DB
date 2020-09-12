@@ -15,6 +15,7 @@ from training.checkpoint import Checkpoint
 from training.learning_rate import (
     ConstantLearningRate, PriorityLearningRate, FileMonitorLearningRate
 )
+import cv2
 from training.model_saver import ModelSaver
 from training.optimizer_scheduler import OptimizerScheduler
 from concern.config import Configurable, Config
@@ -181,10 +182,16 @@ class Eval:
                     raw_metric = self.structure.measurer.validate_measure(batch, output, is_output_polygon=self.args['polygon'], box_thresh=self.args['box_thresh'])
                     raw_metrics.append(raw_metric)
 
-                    if visualize and self.structure.visualizer:
+                    if True and self.structure.visualizer:
                         vis_image = self.structure.visualizer.visualize(batch, output, pred)
                         self.logger.save_image_dict(vis_image)
                         vis_images.update(vis_image)
+                        
+                          
+                        print(type(vis_image))
+                        print(vis_image.keys())
+                        print('demo_results/'+batch['filename'][0].split(".")[0]+"_eval.jpg")
+                        cv2.imwrite('demo_results/'+os.path.basename(batch['filename'][0]).split(".")[0]+"_eval.jpg",vis_image[batch['filename'][0]+"_output"])
                 metrics = self.structure.measurer.gather_measure(raw_metrics, self.logger)
                 for key, metric in metrics.items():
                     self.logger.info('%s : %f (%d)' % (key, metric.avg, metric.count))
