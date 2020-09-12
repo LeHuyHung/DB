@@ -61,6 +61,25 @@ class SegDetector(nn.Module):
                     inner_channels, serial=serial, smooth=smooth, bias=bias)
             self.thresh.apply(self.weights_init)
 
+
+        #====== border ====
+        self.binarize_border = nn.Sequential(
+            nn.Conv2d(inner_channels, inner_channels //
+                      4, 3, padding=1, bias=bias),
+            BatchNorm2d(inner_channels//4),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(inner_channels//4, inner_channels//4, 2, 2),
+            BatchNorm2d(inner_channels//4),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(inner_channels//4, 1, 2, 2),
+            nn.Sigmoid())
+        self.binarize_border.apply(self.weights_init)
+
+        self.adaptive = adaptive
+        if adaptive:
+            self.thresh_border = self._init_thresh(
+                    inner_channels, serial=serial, smooth=smooth, bias=bias)
+            self.thresh_border.apply(self.weights_init)
         self.in5.apply(self.weights_init)
         self.in4.apply(self.weights_init)
         self.in3.apply(self.weights_init)
@@ -134,10 +153,19 @@ class SegDetector(nn.Module):
         # this is the pred module, not binarization module; 
         # We do not correct the name due to the trained model.
         binary = self.binarize(fuse)
+        
+        binary_border = self.binarize_border(fuse)
         if self.training:
             result = OrderedDict(binary=binary)
         else:
-            return binary
+            if True:
+                thresh = self.thresh(fuse)
+                thresh_binary = self.step_function(binary, thresh)
+                thresh_border=self.thresh_border(fuse)
+                thresh_binary_border = self.step_function(binary_border, thresh_border)
+                return {'binary':binary,'thresh_binary':thresh_binary,'thresh_binary_border':thresh_binary_border}
+            else:
+                return binary
         if self.adaptive and self.training:
             if self.serial:
                 fuse = torch.cat(
@@ -145,7 +173,11 @@ class SegDetector(nn.Module):
                             binary, fuse.shape[2:])), 1)
             thresh = self.thresh(fuse)
             thresh_binary = self.step_function(binary, thresh)
-            result.update(thresh=thresh, thresh_binary=thresh_binary)
+            
+            thresh_border=self.thresh_border(fuse)
+            thresh_binary_border = self.step_function(binary_border, thresh_border)
+            result.update(thresh=thresh, thresh_binary=thresh_binary,
+                        binary_border=binary_border)
         return result
 
     def step_function(self, x, y):

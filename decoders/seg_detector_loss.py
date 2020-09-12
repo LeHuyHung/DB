@@ -31,6 +31,7 @@ class SegDetectorLossBuilder():
         self.loss_kwargs = kwargs
 
     def build(self):
+        print("=================sys.modules[__name__], self.loss_class====",sys.modules[__name__], self.loss_class)
         return getattr(sys.modules[__name__], self.loss_class)(*self.loss_args, **self.loss_kwargs)
 
 
@@ -191,13 +192,15 @@ class L1BalanceCELoss(nn.Module):
         self.bce_scale = bce_scale
 
     def forward(self, pred, batch):
+        
         bce_loss = self.bce_loss(pred['binary'], batch['gt'], batch['mask'])
+        bce_loss_border = self.bce_loss(pred['binary_border'], batch['gt_border_line'], batch['mask'])
         metrics = dict(bce_loss=bce_loss)
         if 'thresh' in pred:
             l1_loss, l1_metric = self.l1_loss(pred['thresh'], batch['thresh_map'], batch['thresh_mask'])
             dice_loss = self.dice_loss(pred['thresh_binary'], batch['gt'], batch['mask'])
             metrics['thresh_loss'] = dice_loss
-            loss = dice_loss + self.l1_scale * l1_loss + bce_loss * self.bce_scale
+            loss = dice_loss + self.l1_scale * l1_loss + bce_loss * self.bce_scale+bce_loss_border * self.bce_scale*0.2
             metrics.update(**l1_metric)
         else:
             loss = bce_loss
