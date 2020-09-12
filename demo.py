@@ -123,26 +123,57 @@ class Demo:
                         res.write(result + ',' + str(score) + "\n")
         
     def inference(self, image_path, visualize=False):
+        
         self.init_torch_tensor()
         model = self.init_model()
         self.resume(model, self.model_path)
-        all_matircs = {}
         model.eval()
-        batch = dict()
-        batch['filename'] = [image_path]
-        img, original_shape = self.load_image(image_path)
-        batch['shape'] = [original_shape]
-        with torch.no_grad():
-            batch['image'] = img
-            pred = model.forward(batch, training=False)
-            output = self.structure.representer.represent(batch, pred, is_output_polygon=self.args['polygon']) 
-            if not os.path.isdir(self.args['result_dir']):
-                os.mkdir(self.args['result_dir'])
-            self.format_output(batch, output)
+        if os.path.isdir(image_path):
+            image_folder=image_path
+            for image_path in os.listdir(image_folder):
+                image_path=os.path.join(image_folder,image_path)
+                print(image_path)
+                all_matircs = {}
+                
+                batch = dict()
+                batch['filename'] = [image_path]
+                img, original_shape = self.load_image(image_path)
+                batch['shape'] = [original_shape]
+                with torch.no_grad():
+                    batch['image'] = img
+                    pred = model.forward(batch, training=False)
+                    
+                    
+                    output = self.structure.representer.represent(batch, pred, is_output_polygon=self.args['polygon']) 
+                    if not os.path.isdir(self.args['result_dir']):
+                        os.mkdir(self.args['result_dir'])
+                    self.format_output(batch, output)
+                    print(len(output[0][0]))
+                    if True and self.structure.visualizer:
+                        vis_image = self.structure.visualizer.demo_visualize(image_path, output)
+                        cv2.imwrite(os.path.join(self.args['result_dir'], image_path.split('/')[-1].split('.')[0]+'.jpg'), vis_image)
+                        predict_map=pred.cpu().numpy()[0,0,:,:]
+                        predict_map=predict_map*254
+                        predict_map=predict_map.astype(np.uint8)
+                        predict_map=np.reshape(predict_map,(predict_map.shape[0],predict_map.shape[1],1))
+                        cv2.imwrite(os.path.join(self.args['result_dir'], image_path.split('/')[-1].split('.')[0]+'_score.jpg'), predict_map)
+        else:
+            
+            all_matircs = {}
+            batch = dict()
+            batch['filename'] = [image_path]
+            img, original_shape = self.load_image(image_path)
+            batch['shape'] = [original_shape]
+            with torch.no_grad():
+                batch['image'] = img
+                pred = model.forward(batch, training=False)
+                output = self.structure.representer.represent(batch, pred, is_output_polygon=self.args['polygon']) 
+                if not os.path.isdir(self.args['result_dir']):
+                    os.mkdir(self.args['result_dir'])
+                self.format_output(batch, output)
 
-            if visualize and self.structure.visualizer:
-                vis_image = self.structure.visualizer.demo_visualize(image_path, output)
-                cv2.imwrite(os.path.join(self.args['result_dir'], image_path.split('/')[-1].split('.')[0]+'.jpg'), vis_image)
-
+                if visualize and self.structure.visualizer:
+                    vis_image = self.structure.visualizer.demo_visualize(image_path, output)
+                    cv2.imwrite(os.path.join(self.args['result_dir'], image_path.split('/')[-1].split('.')[0]+'.jpg'), vis_image)
 if __name__ == '__main__':
     main()

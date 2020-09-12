@@ -3,6 +3,7 @@ from collections import OrderedDict
 import torch
 
 import structure.model
+import structure.model_ALLINONE
 from concern.config import Configurable, State
 
 
@@ -20,6 +21,9 @@ class Builder(Configurable):
         return self.model + '-' + getattr(structure.model, self.model).model_name(self.model_args)
 
     def build(self, device, distributed=False, local_rank: int = 0):
+        print("===================== build model ==============")
+        
+        print(structure.model,self.model)
         Model = getattr(structure.model,self.model)
         model = Model(self.model_args, device,
                       distributed=distributed, local_rank=local_rank)

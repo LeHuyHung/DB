@@ -19,8 +19,7 @@ class Config(object):
 
         for path in conf.get('import', []):
             parent_conf = self.load(path)
-            parent_packages, parent_defines = self.compile(
-                parent_conf, return_packages=True)
+            parent_packages, parent_defines = self.compile(parent_conf, return_packages=True)
             packages.extend(parent_packages)
             defines.update(parent_defines)
 
@@ -127,18 +126,22 @@ class Configurable(metaclass=StateMeta):
     @staticmethod
     def construct_class_from_config(args):
         cls = Configurable.extract_class_from_args(args)
+        print(cls,"===========")
         return cls(**args)
 
     @staticmethod
     def extract_class_from_args(args):
         cls = args.copy().pop('class')
         package, cls = cls.rsplit('.', 1)
+        print("import ",package, cls)
         module = importlib.import_module(package)
         cls = getattr(module, cls)
         return cls
 
     def load_all(self, **kwargs):
+        print("=========== ",type(self).__name__,"call load all")
         for name, state in self.states.items():
+            #print(type(self).__name__,"==>",name)
             if state.autoload:
                 self.load(name, **kwargs)
 
@@ -160,6 +163,7 @@ class Configurable(metaclass=StateMeta):
             return [self.create_member_from_config((subargs, cmd)) for subargs in args]
         elif isinstance(args, dict):
             if 'class' in args:
+                print("from: ",type(self).__name__)
                 cls = self.extract_class_from_args(args)
                 return cls(**args, cmd=cmd)
             return {key: self.create_member_from_config((subargs, cmd)) for key, subargs in args.items()}

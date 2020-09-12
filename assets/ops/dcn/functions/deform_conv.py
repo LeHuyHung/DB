@@ -36,7 +36,8 @@ class DeformConvFunction(Function):
                                             ctx.dilation, ctx.stride))
 
         ctx.bufs_ = [input.new_empty(0), input.new_empty(0)]  # columns, ones
-
+        
+        print(input)
         if not input.is_cuda:
             raise NotImplementedError
         else:
@@ -127,6 +128,7 @@ class ModulatedDeformConvFunction(Function):
         ctx.with_bias = bias is not None
         if not ctx.with_bias:
             bias = input.new_empty(1)  # fake tensor
+        
         if not input.is_cuda:
             raise NotImplementedError
         if weight.requires_grad or mask.requires_grad or offset.requires_grad \

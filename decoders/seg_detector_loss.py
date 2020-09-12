@@ -31,6 +31,7 @@ class SegDetectorLossBuilder():
         self.loss_kwargs = kwargs
 
     def build(self):
+        print("build loss",__name__,self.loss_class)
         return getattr(sys.modules[__name__], self.loss_class)(*self.loss_args, **self.loss_kwargs)
 
 

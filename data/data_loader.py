@@ -26,6 +26,10 @@ class DataLoader(Configurable, torch.utils.data.DataLoader):
     shuffle = State()
 
     def __init__(self, **kwargs):
+        print("DataLoader init")
+        #print(kwargs)
+        
+        
         self.load_all(**kwargs)
         if self.collect_fn is None:
             self.collect_fn = torch.utils.data.dataloader.default_collate
@@ -55,6 +59,7 @@ class DataLoader(Configurable, torch.utils.data.DataLoader):
                 drop_last=self.drop_last, shuffle=self.shuffle,
                 pin_memory=True, collate_fn=self.collect_fn,
                 worker_init_fn=default_worker_init_fn)
+        #print(self.dataset)
         self.collect_fn = str(self.collect_fn)
 
 
