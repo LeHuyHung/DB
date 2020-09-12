@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=2 python eval.py experiments/seg_detector/totaltext_resnet50_deform_thre.yaml --resume /home/asilla/10_dataset/hunglh/text_detection/DB_BiFPN/DB/workspace/SegDetectorModel-seg_detector/deformable_resnet50/L1BalanceCELoss/model/model_epoch_2977_minibatch_990000 --polygon --box_thresh 0.6

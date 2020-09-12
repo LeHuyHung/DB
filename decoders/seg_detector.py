@@ -1,9 +1,9 @@
 from collections import OrderedDict
-
+from .bifpn2d import BiFPNBlock
 import torch
 import torch.nn as nn
 BatchNorm2d = nn.BatchNorm2d
-
+#from .DMFNet_16x import normalization, Conv3d_Block, DilatedConv3DBlock, MFunit, DMFUnit
 class SegDetector(nn.Module):
     def __init__(self,
                  in_channels=[64, 128, 256, 512],
@@ -70,6 +70,11 @@ class SegDetector(nn.Module):
         self.out3.apply(self.weights_init)
         self.out2.apply(self.weights_init)
 
+
+        #==== BiFPN ====
+        #self.biFPN = BiFPN(n_layers=1, c=4, n=32, channels=inner_channels,groups=16,norm='bn', base_unit=MFunit, bifpn_unit="concatenate")
+                 
+        self.biFPN = BiFPNBlock(feature_size=inner_channels)
     def weights_init(self, m):
         classname = m.__class__.__name__
         if classname.find('Conv') != -1:
@@ -121,6 +126,11 @@ class SegDetector(nn.Module):
         in3 = self.in3(c3)
         in2 = self.in2(c2)
 
+
+        #==== use BiFPN===
+        in2, in3, in4, in5 = self.biFPN([in2, in3, in4, in5])
+        
+        
         out4 = self.up5(in5) + in4  # 1/16
         out3 = self.up4(out4) + in3  # 1/8
         out2 = self.up3(out3) + in2  # 1/4

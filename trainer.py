@@ -30,6 +30,7 @@ class Trainer:
             self.device = torch.device('cpu')
 
     def init_model(self):
+        
         model = self.structure.builder.build(
             self.device, self.experiment.distributed, self.experiment.local_rank)
         return model
