@@ -30,17 +30,19 @@ class Trainer:
             self.device = torch.device('cpu')
 
     def init_model(self):
+        
         model = self.structure.builder.build(
             self.device, self.experiment.distributed, self.experiment.local_rank)
         return model
 
     def update_learning_rate(self, optimizer, epoch, step):
-        lr = self.experiment.train.scheduler.learning_rate.get_learning_rate(
-            epoch, step)
+        pass
+        # lr = self.experiment.train.scheduler.learning_rate.get_learning_rate(
+            # epoch, step)
 
-        for group in optimizer.param_groups:
-            group['lr'] = lr
-        self.current_lr = lr
+        # for group in optimizer.param_groups:
+            # group['lr'] = lr
+        # self.current_lr = lr
 
     def train(self):
         self.logger.report_time('Start')
