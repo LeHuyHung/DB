@@ -1,0 +1,3 @@
+#CUDA_VISIBLE_DEVICES=0 python train.py experiments/seg_detector/totaltext_resnet50_deform_thre.yaml --resume /home/asilla/10_dataset/hunglh/text_detection/DB_Bi_At_Ra/DB/outputs/workspace/DB/SegDetectorModel-seg_detector/deformable_resnet50/L1BalanceCELoss/model/model_epoch_1297_minibatch_486000 --num_gpus 1 --epochs=3000000 --batch_size=3 --start_epoch=0 --start_iter=198000
+
+CUDA_VISIBLE_DEVICES=0 python train.py experiments/seg_detector/totaltext_resnet50_deform_thre.yaml --resume /home/asilla/10_dataset/hunglh/text_detection/DB_ajp10/DB/experiments/checkpoint/pre-trained-model-synthtext-resnet50 --num_gpus 3 --epochs=3000000 --batch_size=6 --start_epoch=0 --start_iter=0

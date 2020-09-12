@@ -1,8 +1,69 @@
 from collections import OrderedDict
-
+from .bifpn2d import BiFPNBlock
 import torch
 import torch.nn as nn
 BatchNorm2d = nn.BatchNorm2d
+#from .DMFNet_16x import normalization, Conv3d_Block, DilatedConv3DBlock, MFunit, DMFUnit
+
+def normalization(planes, norm='bn'):
+    if norm == 'bn':
+        m = nn.BatchNorm2d(planes)
+    elif norm == 'gn':
+        m = nn.GroupNorm(4, planes)
+    elif norm == 'in':
+        m = nn.InstanceNorm2d(planes)
+    elif norm == 'sync_bn':
+        m = SynchronizedBatchNorm2d(planes)
+    else:
+        raise ValueError('normalization type {} is not supported'.format(norm))
+    return m
+class AttentionBlock(nn.Module):
+    def __init__(self, f_g, f_l, f_int, norm, g=1):
+        super(AttentionBlock, self).__init__()
+        self.W_g = nn.Sequential(
+            nn.Conv2d(f_g, f_int, kernel_size=1, padding=0, stride=1, groups=g,
+                      bias=True),
+            normalization(f_int, norm=norm)
+            # nn.Conv2d(f_g, f_int, kernel_size=1, stride=1, padding=0, bias=True),
+            # nn.BatchNorm2d(f_int)
+        )
+
+        self.W_x = nn.Sequential(
+            nn.Conv2d(f_l, f_int, kernel_size=1, stride=1, padding=0, groups=g,
+                      bias=True),
+            normalization(f_int, norm=norm)
+            # nn.Conv2d(f_l, f_int, kernel_size=1, stride=1, padding=0, bias=True),
+            # nn.BatchNorm2d(f_int)
+        )
+
+        # self.psi = nn.Sequential(
+            # nn.Conv2d(f_int, 1, kernel_size=1, stride=1, padding=0,
+                      # bias=True),
+            # normalization(1, norm=norm),
+            # # nn.Conv2d(f_int, 1, kernel_size=1, stride=1, padding=0, bias=True),
+            # # nn.BatchNorm2d(1),
+            # nn.Sigmoid()
+        # )
+        self.psi = nn.Sequential(
+            nn.Conv2d(f_int, 1, kernel_size=1, stride=1, padding=0,
+                      bias=True),
+            normalization(1, norm=norm),
+            # nn.Conv2d(f_int, 1, kernel_size=1, stride=1, padding=0, bias=True),
+            # nn.BatchNorm2d(1),
+            
+        )
+
+        self.sigmoid=nn.Sigmoid()
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, g, x):
+        g1 = self.W_g(g)
+        x1 = self.W_x(x)
+        psi = self.relu(g1 + x1)
+        psi = self.psi(psi)
+        psi=psi+1
+        psi=self.sigmoid(psi)
+        return x * psi
 
 class SegDetector(nn.Module):
     def __init__(self,
@@ -70,6 +131,20 @@ class SegDetector(nn.Module):
         self.out3.apply(self.weights_init)
         self.out2.apply(self.weights_init)
 
+
+        #==== BiFPN ====
+        #self.biFPN = BiFPN(n_layers=1, c=4, n=32, channels=inner_channels,groups=16,norm='bn', base_unit=MFunit, bifpn_unit="concatenate")
+                 
+        self.biFPN = BiFPNBlock(feature_size=inner_channels)
+        
+        
+        # init atteiont :
+        channels=128
+        norm='bn'
+        self.att4 = AttentionBlock(f_g=channels * 2, f_l=channels * 2, f_int=channels, norm=norm, g=1)
+        self.att3 = AttentionBlock(f_g=channels * 2, f_l=channels* 2, f_int=channels, norm=norm, g=1)
+        self.att2 = AttentionBlock(f_g=channels * 2, f_l=channels * 2, f_int=channels, norm=norm, g=1)
+        print("=============== using attention=================")
     def weights_init(self, m):
         classname = m.__class__.__name__
         if classname.find('Conv') != -1:
@@ -121,9 +196,24 @@ class SegDetector(nn.Module):
         in3 = self.in3(c3)
         in2 = self.in2(c2)
 
-        out4 = self.up5(in5) + in4  # 1/16
-        out3 = self.up4(out4) + in3  # 1/8
-        out2 = self.up3(out3) + in2  # 1/4
+
+        #==== use BiFPN===
+        in2, in3, in4, in5 = self.biFPN([in2, in3, in4, in5])
+        
+        
+        up5 = self.up5(in5)  # inner_channels,1/16
+        in4 = self.att4(g=up5, x=in4) # inner_channels,1/16
+        out4 = up5+in4
+        
+        up4 = self.up4(out4)  # 1/16
+        in3 = self.att3(g=up4, x=in3)
+        out3 = up4+in3
+        
+        up3 = self.up5(out3)  # 1/16
+        in2 = self.att2(g=up3, x=in2)
+        out2 = up3+in2
+        
+       
 
         p5 = self.out5(in5)
         p4 = self.out4(out4)
